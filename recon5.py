@@ -16,21 +16,27 @@ def upload_form():
         
         st.write("Select columns from your files to match with the predefined columns")
         
-        predefined_columns = ["Date", "Details", "Debit", "Credit", "Value Date", "Trans. No.", "Ref. No."]
+        primary_columns = ["Date", "Description", "Debit", "Credit"]
+        supplementary_columns = ["Trans. No.", "Ref. No."]
         
-        for column in predefined_columns:
+        for column in primary_columns:
             df1_col = st.selectbox(f'Select column in df1 to match with {column}', df1.columns)
             df2_col = st.selectbox(f'Select column in df2 to match with {column}', df2.columns)
             
             df1 = df1.rename(columns={df1_col: column})
             df2 = df2.rename(columns={df2_col: column})
         
+        for column in supplementary_columns:
+            df1_col = st.selectbox(f'Select column in df1 to match with {column} (Optional)', df1.columns)
+            
+            df1 = df1.rename(columns={df1_col: column})
+            
         if st.button('Proceed with these column matches'):
             df1['Amount'] = df1['Debit'] - df1['Credit']
             df2['Amount'] = df2['Debit'] - df2['Credit']
             
-            df1 = df1[['Date', 'Details', 'Amount']]
-            df2 = df2[['Date', 'Details', 'Amount']]
+            df1 = df1[['Date', 'Description', 'Amount']]
+            df2 = df2[['Date', 'Description', 'Amount']]
             
             df_unmatched = calculate_unmatched(df1, df2)
             st.write(df_unmatched)
