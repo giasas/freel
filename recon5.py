@@ -14,21 +14,24 @@ def upload_form():
         df1 = pd.read_excel(file1)
         df2 = pd.read_excel(file2)
         
-        st.write("Select columns from df1 to match with df2")
+        st.write("Select columns from your files to match with the predefined columns")
         
-        df1_date_col = st.selectbox('Select Date column for df1', df1.columns)
-        df2_date_col = st.selectbox('Select Date column for df2', df2.columns)
+        predefined_columns = ["Date", "Details", "Debit", "Credit", "Value Date", "Trans. No.", "Ref. No."]
         
-        df1_details_col = st.selectbox('Select Details column for df1', df1.columns)
-        df2_details_col = st.selectbox('Select Details column for df2', df2.columns)
-        
-        df1_amount_col = st.selectbox('Select Amount column for df1', df1.columns)
-        df2_amount_col = st.selectbox('Select Amount column for df2', df2.columns)
+        for column in predefined_columns:
+            df1_col = st.selectbox(f'Select column in df1 to match with {column}', df1.columns)
+            df2_col = st.selectbox(f'Select column in df2 to match with {column}', df2.columns)
+            
+            df1 = df1.rename(columns={df1_col: column})
+            df2 = df2.rename(columns={df2_col: column})
         
         if st.button('Proceed with these column matches'):
-            df1 = df1.rename(columns={df1_date_col: 'Date', df1_details_col: 'Details', df1_amount_col: 'Amount'})
-            df2 = df2.rename(columns={df2_date_col: 'Date', df2_details_col: 'Details', df2_amount_col: 'Amount'})
-        
+            df1['Amount'] = df1['Debit'] - df1['Credit']
+            df2['Amount'] = df2['Debit'] - df2['Credit']
+            
+            df1 = df1[['Date', 'Details', 'Amount']]
+            df2 = df2[['Date', 'Details', 'Amount']]
+            
             df_unmatched = calculate_unmatched(df1, df2)
             st.write(df_unmatched)
 
