@@ -1,10 +1,21 @@
 import streamlit as st
 import pandas as pd
 
-def match_transactions(df_unmatched):
-    # Εδώ θα εφαρμόσουμε τη λογική για την εύρεση των αντιστοιχιών
+def calculate_unmatched(df1, df2):
+    df1 = df1[['Date', 'Details', 'Amount']]
+    df2 = df2[['Date', 'Description', 'Amount']]
+    merged = df1.merge(df2, how='outer', left_on=['Date', 'Amount'], right_on=['Date', 'Amount'], indicator=True)
+    unmatched = merged[merged['_merge'] != 'both']
+    return unmatched
 
-# Η συνάρτηση αυτή εμφανίζει την φόρμα εισαγωγής αρχείων
+def display_unmatched(unmatched_df):
+    st.subheader('Unmatched Transactions')
+    st.write(unmatched_df)
+
+def match_transactions(df_unmatched):
+    display_unmatched(df_unmatched)
+    # Εδώ μπορείτε να προσθέσετε περαιτέρω λειτουργίες για το manual matching
+
 def upload_form():
     st.title('Upload your Excel files')
     
@@ -17,7 +28,6 @@ def upload_form():
         df_unmatched = calculate_unmatched(df1, df2)
         match_transactions(df_unmatched)
 
-# Η κύρια συνάρτηση που ξεκινά την εφαρμογή
 def main():
     upload_form()
 
