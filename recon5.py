@@ -14,13 +14,16 @@ def calculate_unmatched(df1, df2, col_mappings):
     df1.columns = ['Date', 'Description', 'Debit', 'Credit'][:len(df1_cols)]
     df2.columns = ['Date', 'Description', 'Debit', 'Credit'][:len(df2_cols)]
 
-    # Merge dataframes and identify unmatched rows
-    df_all = pd.concat([df1.assign(Source='File 1'), df2.assign(Source='File 2')])
+    # Merge dataframes on Date and Amount
+    df_all = pd.merge(df1, df2, how='outer', on=['Date', 'Debit', 'Credit'], indicator=True)
+
+    # Filter out the matched rows
+    df_unmatched = df_all[df_all['_merge'] != 'both']
 
     # Sort by date for better presentation
-    df_all = df_all.sort_values(by='Date')
+    df_unmatched = df_unmatched.sort_values(by='Date')
 
-    return df_all
+    return df_unmatched
 
 def upload_form():
     st.title("Reconciliation Tool")
