@@ -1,31 +1,34 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from datetime import timedelta
 
 def calculate_unmatched(df1, df2, col_mappings):
     # Adjust columns based on user input
-    df1_cols = [col_mappings[key] for key in ['Date1', 'Description1', 'Debit1', 'Credit1'] if col_mappings[key] is not None]
+    df1_cols = [col_mappings[key] for key in ['Date1', 'Description1', 'Debit1', 'Credit1', 'TransNo1', 'RefNo1'] if col_mappings[key] is not None]
     df1 = df1[df1_cols]
-    
+
     df2_cols = [col_mappings[key] for key in ['Date2', 'Description2', 'Debit2', 'Credit2'] if col_mappings[key] is not None]
     df2 = df2[df2_cols]
 
     # Rename columns for consistency
-    df1.columns = ['Date', 'Description', 'Debit', 'Credit'][:len(df1_cols)]
+    df1.columns = ['Date', 'Description', 'Debit', 'Credit', 'TransNo', 'RefNo'][:len(df1_cols)]
     df2.columns = ['Date', 'Description', 'Debit', 'Credit'][:len(df2_cols)]
 
-    # Merge dataframes based on Date and Amount
-    df1['Amount'] = df1['Debit'].combine_first(-df1['Credit'])
-    df2['Amount'] = df2['Debit'].combine_first(-df2['Credit'])
+    # Combine Debit and Credit columns
+    df1["Amount"] = df1["Debit"].fillna(0) - df1["Credit"].fillna(0)
+    df2["Amount"] = df2["Debit"].fillna(0) - df2["Credit"].fillna(0)
 
-    merged = pd.merge(df1, df2, on=['Date', 'Amount'], how='outer', indicator=True, suffixes=('_df1', '_df2'))
+    # Drop the original Debit and Credit columns
+    df1 = df1.drop(columns=["Debit", "Credit"])
+    df2 = df2.drop(columns=["Debit", "Credit"])
 
-    # Extract rows that are present in only one dataframe
-    unmatched = merged[merged['_merge'] != 'both']
+    # Merge dataframes on Amount and Date (with a tolerance of 10 days)
+    merged = pd.merge_asof(df1.sort_values('Amount'), df2.sort_values('Amount'), 
+                           on='Amount', by='Date', direction='nearest', 
+                           tolerance=pd.Timedelta('10D'), suffixes=('', '_y'))
 
-    # Sort by date for better presentation
-    unmatched = unmatched.sort_values(by='Date').drop(columns=['_merge'])
+    # Filter out matched transactions
+    unmatched = merged[merged['Description_y'].isna()].drop(columns=['Description_y', 'Date_y'])
 
     return unmatched
 
@@ -51,6 +54,8 @@ def upload_form():
             'Description1': st.selectbox('Select the Description column from first file', [None] + list(df1.columns), index=2),
             'Debit1': st.selectbox('Select the Debit column from first file', [None] + list(df1.columns)),
             'Credit1': st.selectbox('Select the Credit column from first file', [None] + list(df1.columns)),
+            'TransNo1': st.selectbox('Select the Trans. No. column from first file (optional)', [None] + list(df1.columns)),
+            'RefNo1': st.selectbox('Select the Ref. No. column from first file (optional)', [None] + list(df1.columns)),
             'Date2': st.selectbox('Select the Date column from bank statement', [None] + list(df2.columns), index=1),
             'Description2': st.selectbox('Select the Description column from bank statement', [None] + list(df2.columns), index=2),
             'Debit2': st.selectbox('Select the Debit column from bank statement', [None] + list(df2.columns)),
