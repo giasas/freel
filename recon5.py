@@ -55,21 +55,22 @@ def upload_form():
         df_unmatched = calculate_unmatched(df1, df2, col_mappings)
 
         st.write(df_unmatched)
-        st.markdown(get_table_download_link(df_unmatched), unsafe_allow_html=True)
+        st.markdown(get_table_download_link_excel(df_unmatched), unsafe_allow_html=True)
 
-def get_table_download_link(df):
+def get_table_download_link_excel(df):
     """Generates a link allowing the data in a given panda dataframe to be downloaded
     in:  dataframe
     out: href string
     """
     import base64
-    import csv
-    from io import StringIO
+    from io import BytesIO
 
-    csv_buffer = StringIO()
-    df.to_csv(csv_buffer, index=False, quoting=csv.QUOTE_NONNUMERIC)
-    b64 = base64.b64encode(csv_buffer.getvalue().encode()).decode()
-    href = f'<a href="data:file/csv;base64,{b64}" download="unmatched_transactions.csv">Download Unmatched Transactions as CSV</a>'
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='Unmatched Transactions', index=False)
+    output.seek(0)
+    b64 = base64.b64encode(output.read()).decode()
+    href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="unmatched_transactions.xlsx">Download Unmatched Transactions as Excel</a>'
     return href
 
 def main():
@@ -77,4 +78,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
