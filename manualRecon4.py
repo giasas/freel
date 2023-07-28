@@ -2,13 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-# Merge dataframes on Date with a tolerance of 10 days
-merged = pd.merge_asof(df1.sort_values('Date'), df2.sort_values('Date'), 
-                       on='Date', tolerance=pd.Timedelta('10D'))
-
-# Filter out matched transactions based on Amount
-unmatched = merged[(merged['Amount'] != merged['Amount_y']) | (merged['Amount_y'].isna())].drop(columns=['Amount_y', 'Description_y'])
-
 def calculate_unmatched(df1, df2, col_mappings):
     # Adjust columns based on user input
     df1_cols = [col_mappings[key] for key in ['Date1', 'Description1', 'Debit1', 'Credit1', 'TransNo1', 'RefNo1'] if col_mappings[key] is not None]
@@ -29,13 +22,12 @@ def calculate_unmatched(df1, df2, col_mappings):
     df1 = df1.drop(columns=["Debit", "Credit"])
     df2 = df2.drop(columns=["Debit", "Credit"])
 
-    # Merge dataframes on Amount and Date (with a tolerance of 10 days)
-    merged = pd.merge_asof(df1.sort_values('Amount'), df2.sort_values('Amount'), 
-                           on='Amount', by='Date', direction='nearest', 
-                           tolerance=pd.Timedelta('10D'), suffixes=('', '_y'))
+    # Merge dataframes on Date with a tolerance of 10 days
+    merged = pd.merge_asof(df1.sort_values('Date'), df2.sort_values('Date'), 
+                           on='Date', tolerance=pd.Timedelta('10D'))
 
-    # Filter out matched transactions
-    unmatched = merged[merged['Description_y'].isna()].drop(columns=['Description_y', 'Date_y'])
+    # Filter out matched transactions based on Amount
+    unmatched = merged[(merged['Amount'] != merged['Amount_y']) | (merged['Amount_y'].isna())].drop(columns=['Amount_y', 'Description_y'])
 
     return unmatched
 
@@ -44,7 +36,6 @@ def upload_form():
 
     file1 = st.file_uploader("Upload the first file", type=['xlsx', 'xls', 'csv'])
     file2 = st.file_uploader("Upload the second file (e.g. Bank Statement)", type=['xlsx', 'xls', 'csv'])
-
     if file1 and file2:
         if file1.name.endswith('.csv'):
             df1 = pd.read_csv(file1)
@@ -70,26 +61,7 @@ def upload_form():
         }
 
         df_unmatched = calculate_unmatched(df1, df2, col_mappings)
-
-        matched_transactions = pd.DataFrame(columns=df_unmatched.columns)
-
-        transaction_1 = st.selectbox("Select a transaction from File 1 to match", df_unmatched[df_unmatched['Source'] == 'File 1'].index)
-        transaction_2 = st.selectbox("Select a transaction from File 2 to match", df_unmatched[df_unmatched['Source'] == 'File 2'].index)
-
-        if st.button("Match Transactions"):
-            match_1 = df_unmatched.loc[transaction_1]
-            match_2 = df_unmatched.loc[transaction_2]
-
-            matched_transactions = matched_transactions.append(match_1)
-            matched_transactions = matched_transactions.append(match_2)
-
-            df_unmatched = df_unmatched.drop([transaction_1, transaction_2])
-
-            st.write("Matched Transactions:")
-            st.write(matched_transactions)
-            st.write("Remaining Unmatched Transactions:")
-            st.write(df_unmatched)
-
+        st.write(df_unmatched)
         st.markdown(get_table_download_link_excel(df_unmatched), unsafe_allow_html=True)
 
 def get_table_download_link_excel(df):
