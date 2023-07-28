@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from datetime import timedelta
 
 def calculate_unmatched(df1, df2, col_mappings):
     # Adjust columns based on user input
@@ -14,16 +15,19 @@ def calculate_unmatched(df1, df2, col_mappings):
     df1.columns = ['Date', 'Description', 'Debit', 'Credit'][:len(df1_cols)]
     df2.columns = ['Date', 'Description', 'Debit', 'Credit'][:len(df2_cols)]
 
-    # Merge dataframes on Date and Amount
-    df_all = pd.merge(df1, df2, how='outer', on=['Date', 'Debit', 'Credit'], indicator=True)
+    # Merge dataframes based on Date and Amount
+    df1['Amount'] = df1['Debit'].combine_first(-df1['Credit'])
+    df2['Amount'] = df2['Debit'].combine_first(-df2['Credit'])
 
-    # Filter out the matched rows
-    df_unmatched = df_all[df_all['_merge'] != 'both']
+    merged = pd.merge(df1, df2, on=['Date', 'Amount'], how='outer', indicator=True)
+
+    # Extract rows that are present in only one dataframe
+    unmatched = merged[merged['_merge'] != 'both']
 
     # Sort by date for better presentation
-    df_unmatched = df_unmatched.sort_values(by='Date')
+    unmatched = unmatched.sort_values(by='Date_x').drop(columns=['_merge'])
 
-    return df_unmatched
+    return unmatched
 
 def upload_form():
     st.title("Reconciliation Tool")
@@ -47,8 +51,6 @@ def upload_form():
             'Description1': st.selectbox('Select the Description column from first file', [None] + list(df1.columns), index=2),
             'Debit1': st.selectbox('Select the Debit column from first file', [None] + list(df1.columns)),
             'Credit1': st.selectbox('Select the Credit column from first file', [None] + list(df1.columns)),
-            'TransNo1': st.selectbox('Select the Trans. No. column from first file (optional)', [None] + list(df1.columns)),
-            'RefNo1': st.selectbox('Select the Ref. No. column from first file (optional)', [None] + list(df1.columns)),
             'Date2': st.selectbox('Select the Date column from bank statement', [None] + list(df2.columns), index=1),
             'Description2': st.selectbox('Select the Description column from bank statement', [None] + list(df2.columns), index=2),
             'Debit2': st.selectbox('Select the Debit column from bank statement', [None] + list(df2.columns)),
