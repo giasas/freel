@@ -2,6 +2,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+# Merge dataframes on Date with a tolerance of 10 days
+merged = pd.merge_asof(df1.sort_values('Date'), df2.sort_values('Date'), 
+                       on='Date', tolerance=pd.Timedelta('10D'))
+
+# Filter out matched transactions based on Amount
+unmatched = merged[(merged['Amount'] != merged['Amount_y']) | (merged['Amount_y'].isna())].drop(columns=['Amount_y', 'Description_y'])
+
 def calculate_unmatched(df1, df2, col_mappings):
     # Adjust columns based on user input
     df1_cols = [col_mappings[key] for key in ['Date1', 'Description1', 'Debit1', 'Credit1', 'TransNo1', 'RefNo1'] if col_mappings[key] is not None]
