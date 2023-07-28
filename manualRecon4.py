@@ -3,6 +3,10 @@ import pandas as pd
 import numpy as np
 
 def calculate_unmatched(df1, df2, col_mappings):
+
+    df1 = df1.dropna(subset=['Date'])
+    df2 = df2.dropna(subset=['Date'])
+    
     # Adjust columns based on user input
     df1_cols = [col_mappings[key] for key in ['Date1', 'Description1', 'Debit1', 'Credit1', 'TransNo1', 'RefNo1'] if col_mappings[key] is not None]
     df1 = df1[df1_cols]
