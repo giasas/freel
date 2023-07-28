@@ -3,12 +3,12 @@ import pandas as pd
 
 def calculate_unmatched(df1, df2, col_mappings):
     # Adjust columns based on user input
-    df1 = df1[[col_mappings['Date1'], col_mappings['Description1'], col_mappings['Amount1']]]
-    df2 = df2[[col_mappings['Date2'], col_mappings['Description2'], col_mappings['Amount2']]]
+    df1 = df1[[col_mappings['Date1'], col_mappings['Description1'], col_mappings['Debit1'], col_mappings['Credit1'], col_mappings['TransNo1'], col_mappings['RefNo1']]]
+    df2 = df2[[col_mappings['Date2'], col_mappings['Description2'], col_mappings['Debit2'], col_mappings['Credit2']]]
 
     # Rename columns for consistency
-    df1.columns = ['Date', 'Description', 'Amount']
-    df2.columns = ['Date', 'Description', 'Amount']
+    df1.columns = ['Date', 'Description', 'Debit', 'Credit', 'Trans. No.', 'Ref. No.']
+    df2.columns = ['Date', 'Description', 'Debit', 'Credit']
 
     # Merge dataframes and identify unmatched rows
     df_all = pd.concat([df1.assign(Source='File 1'), df2.assign(Source='File 2')])
@@ -38,10 +38,14 @@ def upload_form():
         col_mappings = {
             'Date1': st.selectbox('Select the Date column from first file', df1.columns, index=0),
             'Description1': st.selectbox('Select the Description column from first file', df1.columns, index=1),
-            'Amount1': st.selectbox('Select the Amount column from first file', df1.columns, index=2),
+            'Debit1': st.selectbox('Select the Debit column from first file', df1.columns),
+            'Credit1': st.selectbox('Select the Credit column from first file', df1.columns),
+            'TransNo1': st.selectbox('Select the Trans. No. column from first file', df1.columns),
+            'RefNo1': st.selectbox('Select the Ref. No. column from first file', df1.columns),
             'Date2': st.selectbox('Select the Date column from bank statement', df2.columns, index=0),
             'Description2': st.selectbox('Select the Description column from bank statement', df2.columns, index=1),
-            'Amount2': st.selectbox('Select the Amount column from bank statement', df2.columns, index=2)
+            'Debit2': st.selectbox('Select the Debit column from bank statement', df2.columns),
+            'Credit2': st.selectbox('Select the Credit column from bank statement', df2.columns)
         }
 
         df_unmatched = calculate_unmatched(df1, df2, col_mappings)
