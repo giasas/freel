@@ -1,51 +1,47 @@
 import streamlit as st
 import pandas as pd
 
-def calculate_unmatched(df1, df2):
-    merged_df = pd.merge(df1, df2, on=['Date', 'Description', 'Amount'], how='outer', indicator=True)
-    unmatched = merged_df[merged_df['_merge'] != 'both']
-    return unmatched
+def calculate_unmatched(df1, df2, columns_mapping):
+    # Use the user-provided mapping to rename columns in the dataframes
+    df1 = df1.rename(columns=columns_mapping['file1'])
+    df2 = df2.rename(columns=columns_mapping['file2'])
+    
+    # Merge the two dataframes based on Date and Description
+    merged = pd.merge(df1, df2, on=['Date', 'Description'], how='outer', indicator=True)
+    return merged[merged['_merge'] != 'both']
 
 def upload_form():
-    file1 = st.file_uploader("Choose a XLSX file for df1", type="xlsx")
-    file2 = st.file_uploader("Choose a XLSX file for df2", type="xlsx")
+    st.title("File Upload for Reconciliation")
+    
+    # Upload the Excel files
+    file1 = st.file_uploader("Choose a file (e.g. Your main file)", type=['xlsx', 'xls'])
+    file2 = st.file_uploader("Choose a second file (e.g. Bank statement)", type=['xlsx', 'xls'])
     
     if file1 and file2:
         df1 = pd.read_excel(file1)
         df2 = pd.read_excel(file2)
         
-        st.write("Select columns from your files to match with the predefined columns")
+        # Allow user to map columns from their files to standard columns
+        st.subheader("Please map the columns from your files to the standard columns:")
         
-        primary_columns = ["Date", "Description", "Debit", "Credit"]
-        supplementary_columns = ["Trans. No.", "Ref. No."]
+        columns_mapping = {
+            'file1': {},
+            'file2': {}
+        }
         
-        for column in primary_columns:
-            df1_col = st.selectbox(f'Select column in df1 to match with {column}', [''] + list(df1.columns))
-            df2_col = st.selectbox(f'Select column in df2 to match with {column}', [''] + list(df2.columns))
+        default_columns = ['Date', 'Description', 'Debit', 'Credit', 'Trans. No.', 'Ref. No.']
+        for col in default_columns:
+            col1_choice = st.selectbox(f"Column in File 1 that corresponds to '{col}'", [''] + list(df1.columns), key=col + "_file1")
+            col2_choice = st.selectbox(f"Column in File 2 that corresponds to '{col}'", [''] + list(df2.columns), key=col + "_file2")
             
-            if df1_col:
-                df1 = df1.rename(columns={df1_col: column})
-            if df2_col:
-                df2 = df2.rename(columns={df2_col: column})
+            if col1_choice:
+                columns_mapping['file1'][col1_choice] = col
+            if col2_choice:
+                columns_mapping['file2'][col2_choice] = col
         
-        for column in supplementary_columns:
-            df1_col = st.selectbox(f'Select column in df1 to match with {column} (Optional)', [''] + list(df1.columns))
-            
-            if df1_col:
-                df1 = df1.rename(columns={df1_col: column})
-            
-        if st.button('Proceed with these column matches'):
-            if all(elem in df1.columns and elem in df2.columns for elem in primary_columns):
-                df1['Amount'] = df1['Debit'] - df1['Credit']
-                df2['Amount'] = df2['Debit'] - df2['Credit']
-                
-                df1 = df1[['Date', 'Description', 'Amount']]
-                df2 = df2[['Date', 'Description', 'Amount']]
-                
-                df_unmatched = calculate_unmatched(df1, df2)
-                st.write(df_unmatched)
-            else:
-                st.error('Please make sure all primary columns are matched.')
+        # Calculate unmatched transactions
+        df_unmatched = calculate_unmatched(df1, df2, columns_mapping)
+        st.write(df_unmatched)
 
 def main():
     upload_form()
