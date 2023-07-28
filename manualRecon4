@@ -64,7 +64,25 @@ def upload_form():
 
         df_unmatched = calculate_unmatched(df1, df2, col_mappings)
 
-        st.write(df_unmatched)
+        matched_transactions = pd.DataFrame(columns=df_unmatched.columns)
+
+        transaction_1 = st.selectbox("Select a transaction from File 1 to match", df_unmatched[df_unmatched['Source'] == 'File 1'].index)
+        transaction_2 = st.selectbox("Select a transaction from File 2 to match", df_unmatched[df_unmatched['Source'] == 'File 2'].index)
+
+        if st.button("Match Transactions"):
+            match_1 = df_unmatched.loc[transaction_1]
+            match_2 = df_unmatched.loc[transaction_2]
+
+            matched_transactions = matched_transactions.append(match_1)
+            matched_transactions = matched_transactions.append(match_2)
+
+            df_unmatched = df_unmatched.drop([transaction_1, transaction_2])
+
+            st.write("Matched Transactions:")
+            st.write(matched_transactions)
+            st.write("Remaining Unmatched Transactions:")
+            st.write(df_unmatched)
+
         st.markdown(get_table_download_link_excel(df_unmatched), unsafe_allow_html=True)
 
 def get_table_download_link_excel(df):
