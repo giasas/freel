@@ -1,47 +1,50 @@
 import streamlit as st
 import pandas as pd
+import io
 
-def calculate_unmatched(df1, df2, columns_mapping):
-    # Use the user-provided mapping to rename columns in the dataframes
-    df1 = df1.rename(columns=columns_mapping['file1'])
-    df2 = df2.rename(columns=columns_mapping['file2'])
-    
-    # Merge the two dataframes based on Date and Description
-    merged = pd.merge(df1, df2, on=['Date', 'Description'], how='outer', indicator=True)
+def calculate_unmatched(df1, df2, df1_cols, df2_cols):
+    df1 = df1[df1_cols].copy()
+    df2 = df2[df2_cols].copy()
+
+    df1['Amount'] = df1['Debit'].combine_first(-df1['Credit'])
+    df2['Amount'] = df2['Debit'].combine_first(-df2['Credit'])
+
+    merged = pd.merge(df1, df2, on=['Date', 'Description', 'Amount'], how='outer', indicator=True)
+
     return merged[merged['_merge'] != 'both']
 
 def upload_form():
-    st.title("File Upload for Reconciliation")
-    
-    # Upload the Excel files
-    file1 = st.file_uploader("Choose a file (e.g. Your main file)", type=['xlsx', 'xls'])
-    file2 = st.file_uploader("Choose a second file (e.g. Bank statement)", type=['xlsx', 'xls'])
-    
+    st.write("Upload your files")
+    file1 = st.file_uploader("Upload File 1 (Your data)", type=['xlsx'])
+    file2 = st.file_uploader("Upload File 2 (Bank data)", type=['xlsx'])
+
     if file1 and file2:
         df1 = pd.read_excel(file1)
         df2 = pd.read_excel(file2)
+
+        st.write("Columns in File 1:")
+        columns1 = st.multiselect("Select the columns for Date, Description, Debit, Credit (in order)", df1.columns)
         
-        # Allow user to map columns from their files to standard columns
-        st.subheader("Please map the columns from your files to the standard columns:")
-        
-        columns_mapping = {
-            'file1': {},
-            'file2': {}
-        }
-        
-        default_columns = ['Date', 'Description', 'Debit', 'Credit', 'Trans. No.', 'Ref. No.']
-        for col in default_columns:
-            col1_choice = st.selectbox(f"Column in File 1 that corresponds to '{col}'", [''] + list(df1.columns), key=col + "_file1")
-            col2_choice = st.selectbox(f"Column in File 2 that corresponds to '{col}'", [''] + list(df2.columns), key=col + "_file2")
-            
-            if col1_choice:
-                columns_mapping['file1'][col1_choice] = col
-            if col2_choice:
-                columns_mapping['file2'][col2_choice] = col
-        
-        # Calculate unmatched transactions
-        df_unmatched = calculate_unmatched(df1, df2, columns_mapping)
-        st.write(df_unmatched)
+        st.write("Columns in File 2:")
+        columns2 = st.multiselect("Select the columns for Date, Description, Debit, Credit (in order)", df2.columns)
+
+        if len(columns1) == 4 and len(columns2) == 4:
+            df1_mapping = {'Date': columns1[0], 'Description': columns1[1], 'Debit': columns1[2], 'Credit': columns1[3]}
+            df2_mapping = {'Date': columns2[0], 'Description': columns2[1], 'Debit': columns2[2], 'Credit': columns2[3]}
+
+            df_unmatched = calculate_unmatched(df1, df2, list(df1_mapping.values()), list(df2_mapping.values()))
+
+            st.write(df_unmatched)
+
+            towrite = io.BytesIO()
+            downloaded_file = df_unmatched.to_excel(towrite, index=False, header=True)  
+            towrite.seek(0)  
+            st.download_button(
+                label="Download Data as Excel",
+                data=towrite,
+                file_name="unmatched_data.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
 def main():
     upload_form()
