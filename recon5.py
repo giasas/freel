@@ -19,13 +19,13 @@ def calculate_unmatched(df1, df2, col_mappings):
     df1['Amount'] = df1['Debit'].combine_first(-df1['Credit'])
     df2['Amount'] = df2['Debit'].combine_first(-df2['Credit'])
 
-    merged = pd.merge(df1, df2, on=['Date', 'Amount'], how='outer', indicator=True)
+    merged = pd.merge(df1, df2, on=['Date', 'Amount'], how='outer', indicator=True, suffixes=('_df1', '_df2'))
 
     # Extract rows that are present in only one dataframe
     unmatched = merged[merged['_merge'] != 'both']
 
     # Sort by date for better presentation
-    unmatched = unmatched.sort_values(by='Date_x').drop(columns=['_merge'])
+    unmatched = unmatched.sort_values(by='Date').drop(columns=['_merge'])
 
     return unmatched
 
