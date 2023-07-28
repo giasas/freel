@@ -1,53 +1,71 @@
 import streamlit as st
 import pandas as pd
-import io
 
-def calculate_unmatched(df1, df2, df1_cols, df2_cols):
-    df1 = df1[df1_cols].copy()
-    df2 = df2[df2_cols].copy()
+def calculate_unmatched(df1, df2, col_mappings):
+    # Adjust columns based on user input
+    df1 = df1[[col_mappings['Date1'], col_mappings['Description1'], col_mappings['Amount1']]]
+    df2 = df2[[col_mappings['Date2'], col_mappings['Description2'], col_mappings['Amount2']]]
 
-    df1['Amount'] = df1['Debit'].combine_first(-df1['Credit'])
-    df2['Amount'] = df2['Debit'].combine_first(-df2['Credit'])
+    # Rename columns for consistency
+    df1.columns = ['Date', 'Description', 'Amount']
+    df2.columns = ['Date', 'Description', 'Amount']
 
-    merged = pd.merge(df1, df2, on=['Date', 'Description', 'Amount'], how='outer', indicator=True)
+    # Merge dataframes and identify unmatched rows
+    df_all = pd.concat([df1.assign(Source='File 1'), df2.assign(Source='File 2')])
 
-    return merged[merged['_merge'] != 'both']
+    # Sort by date for better presentation
+    df_all = df_all.sort_values(by='Date')
+
+    return df_all
 
 def upload_form():
-    st.write("Upload your files")
-    file1 = st.file_uploader("Upload File 1 (Your data)", type=['xlsx'])
-    file2 = st.file_uploader("Upload File 2 (Bank data)", type=['xlsx'])
+    st.title("Reconciliation Tool")
+
+    file1 = st.file_uploader("Upload the first file", type=['xlsx', 'xls', 'csv'])
+    file2 = st.file_uploader("Upload the second file (e.g. Bank Statement)", type=['xlsx', 'xls', 'csv'])
 
     if file1 and file2:
-        df1 = pd.read_excel(file1)
-        df2 = pd.read_excel(file2)
+        if file1.name.endswith('.csv'):
+            df1 = pd.read_csv(file1)
+        else:
+            df1 = pd.read_excel(file1)
 
-        st.write("Columns in File 1:")
-        columns1 = st.multiselect("Select the columns for Date, Description, Debit, Credit (in order)", df1.columns)
-        
-        st.write("Columns in File 2:")
-        columns2 = st.multiselect("Select the columns for Date, Description, Debit, Credit (in order)", df2.columns)
+        if file2.name.endswith('.csv'):
+            df2 = pd.read_csv(file2)
+        else:
+            df2 = pd.read_excel(file2)
 
-        if len(columns1) == 4 and len(columns2) == 4:
-            df1_mapping = {'Date': columns1[0], 'Description': columns1[1], 'Debit': columns1[2], 'Credit': columns1[3]}
-            df2_mapping = {'Date': columns2[0], 'Description': columns2[1], 'Debit': columns2[2], 'Credit': columns2[3]}
+        col_mappings = {
+            'Date1': st.selectbox('Select the Date column from first file', df1.columns, index=0),
+            'Description1': st.selectbox('Select the Description column from first file', df1.columns, index=1),
+            'Amount1': st.selectbox('Select the Amount column from first file', df1.columns, index=2),
+            'Date2': st.selectbox('Select the Date column from bank statement', df2.columns, index=0),
+            'Description2': st.selectbox('Select the Description column from bank statement', df2.columns, index=1),
+            'Amount2': st.selectbox('Select the Amount column from bank statement', df2.columns, index=2)
+        }
 
-            df_unmatched = calculate_unmatched(df1, df2, list(df1_mapping.values()), list(df2_mapping.values()))
+        df_unmatched = calculate_unmatched(df1, df2, col_mappings)
 
-            st.write(df_unmatched)
+        st.write(df_unmatched)
+        st.markdown(get_table_download_link(df_unmatched), unsafe_allow_html=True)
 
-            towrite = io.BytesIO()
-            downloaded_file = df_unmatched.to_excel(towrite, index=False, header=True)  
-            towrite.seek(0)  
-            st.download_button(
-                label="Download Data as Excel",
-                data=towrite,
-                file_name="unmatched_data.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+def get_table_download_link(df):
+    """Generates a link allowing the data in a given panda dataframe to be downloaded
+    in:  dataframe
+    out: href string
+    """
+    import base64
+    import csv
+    from io import StringIO
+
+    csv_buffer = StringIO()
+    df.to_csv(csv_buffer, index=False, quoting=csv.QUOTE_NONNUMERIC)
+    b64 = base64.b64encode(csv_buffer.getvalue().encode()).decode()
+    href = f'<a href="data:file/csv;base64,{b64}" download="unmatched_transactions.csv">Download Unmatched Transactions as CSV</a>'
+    return href
 
 def main():
     upload_form()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
